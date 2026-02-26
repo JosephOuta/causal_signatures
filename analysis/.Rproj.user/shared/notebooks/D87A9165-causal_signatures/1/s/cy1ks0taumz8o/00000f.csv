@@ -1,0 +1,3 @@
+"0","base_path <- here(""data"")"
+"0","df_path <- paste0(base_path, ""/010526.csv"")"
+"0",""

@@ -1,0 +1,439 @@
+---
+title: "STUDYNAME"
+output:
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    theme: cosmo
+    highlight: tango
+date: "20YY-MM-DD"
+author: Joseph Outa
+---
+
+# ReadME
+
+Description of study
+- Study name: Causal Signatures
+- Research question:
+- Design: between. Condition: experimental-2_122425
+- Independent variable: 
+- Dependent variable:
+- Instruction text:
+- Prompt text: 
+- Date study ran: 
+- People: (RAs)
+- Some descriptive stats: N of study ( ), N per condition ( ), Mean age ( )
+- Location of relevant accessory files: codebook (/code/codebooks), pre-registration (/preregistration)
+- if Pilot was ran, pilot N ( ), date of pilot ( )
+
+# Setup
+
+## Load packages
+
+```{r, setup, include = FALSE}
+#knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+
+library(pacman)
+pacman::p_load(tidyverse,
+               ggforce,
+               conflicted,
+               here,
+               cowplot,
+               lme4,
+               lmerTest,
+               effects,
+               Hmisc,
+               performance,
+               rmarkdown,
+               purrr,
+               gt,
+               ragg,
+               readr,
+               scales,
+               patchwork,
+               corrplot,
+               magick,
+               pdftools,
+               simr
+               )
+
+walk(c("select", "filter", "rename", "mutate", "summarise", "summarize"), ~ conflict_prefer(.x, "dplyr"))
+conflicts_prefer(simr::fixed)
+theme_set(theme_bw()) 
+sessionInfo()
+
+```
+
+## Global variables
+
+```{r}
+base_path <- here("data")
+df_path <- paste0(base_path, "/010526.csv")
+
+```
+
+## Read data
+
+```{r}
+d <- read_csv(df_path) %>% 
+  filter(condition %in% c("experimental-2", "experimental-3", "experimental-4")) 
+
+```
+
+# Wrangle Data
+
+## Wrangle
+
+```{r}
+df <- d %>% 
+  mutate(correct = response == adults)
+#run exclusions
+subjects_to_exclude <- df %>%
+  filter(trial_type == "comprehension") %>%
+  filter(correct == FALSE) %>% 
+  pull(subject_id) %>% 
+  unique()
+
+# subjects_to_exclude <- NULL
+
+#rest of the wrangling
+dat <- df %>% 
+  filter(!subject_id %in% subjects_to_exclude) %>% 
+  mutate(age_floor = floor(age))
+
+```
+
+## Demographics
+
+```{r}
+df_demographics <- d %>% 
+  select("subject_id", "condition", "age") 
+cat("\n") 
+
+paste0("pre-exclusion N: ", d %>% distinct(subject_id) %>% summarize(n = n()) %>% pull(n))
+paste0("post-exclusion N: ", dat %>% distinct(subject_id) %>% summarize(n = n()) %>% pull(n))
+cat("\n") 
+
+paste0(
+  "Post-exclusion condition count: ",
+  dat %>% 
+    distinct(subject_id, .keep_all = TRUE) %>% 
+    count(condition) %>% 
+    mutate(label = paste0(condition, " = ", n)) %>% 
+    pull(label) %>% 
+    paste(collapse = ", ")
+)
+cat("\n") 
+
+paste0("Age summary: ")
+summary(df_demographics$age)
+cat("\n") 
+
+```
+
+# Plot
+
+## Overall proportion correct
+
+
+```{r}
+dat_overall_plot <- dat %>% 
+  select(subject_id, response, adults) %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  # group_by(subject_id) %>% 
+  summarize(n = n(),
+            prop_adult = mean(correct),
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n )) %>% 
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2))
+
+dat_overall_plot %>% 
+  ggplot(aes(x = 1, y = prop_adult)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = prop_adult - se_adult,
+                    ymax = prop_adult + se_adult),
+                width = 0.1) +
+  ylim(0, 1) +
+  xlim(-0.5, 2.5) +
+  labs(
+    x = NULL,
+    y = "Proportion correct"
+  ) +
+  theme(axis.text.x = element_blank())
+
+
+```
+
+## Overall proportion correct by age
+
+```{r}
+dat_age_plot <- dat %>% 
+  mutate(age_floor = floor(age)) %>% 
+  select(subject_id, age_floor, response, adults) %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  group_by(age_floor) %>%
+  summarize(n = n(),
+            prop_adult = mean(correct),
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n )) %>% 
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2))
+
+str(dat_age_plot)
+
+dat_age_plot %>% 
+  ggplot(aes(x = age_floor, y = prop_adult)) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = prop_adult - se_adult,
+                    ymax = prop_adult + se_adult),
+                width = 0.1) +
+  ylim(0, 1) +
+  scale_x_continuous(breaks = seq(3, 8, by = 1)) +
+  labs(
+    x = NULL,
+    y = "Proportion adult-like"
+  ) 
+
+```
+
+# age distribution
+
+```{r}
+dat %>% 
+  mutate(age_floor = floor(age)) %>% 
+  distinct(subject_id, .keep_all = TRUE) %>% 
+  group_by(age_floor) %>%
+  count(sum = n()) %>% 
+  ggplot(aes(x = age_floor, y = n, fill = factor(age_floor))) +
+  geom_col() +
+  scale_fill_brewer(palette = "Greens") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = seq(3, 8, by = 1))
+  
+```
+
+
+
+
+## Condition difference
+
+```{r}
+# Example code that uses stat_summary, rather than summarizing separately
+
+##prepare to plot
+dat_long <- dat 
+dat_plot <- dat_long
+
+##plot here
+main_fig <- dat_plot %>% 
+  ggplot(aes(x = age, y = likelihood, fill = counterfactual_type)) +
+  stat_summary(fun.data = mean_se, geom = "bar", color = "black") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = .2) +
+  geom_hline(yintercept = 50, linetype = "dashed") +
+  labs(y = "Likelihood of Counterfactual", 
+       x = "Preceding Item Type",
+       fill = "Preceding Item Type") +
+  scale_x_discrete(labels = c("counterfactual" = "Causal", "similarity" = "Similar")) +
+  theme_cowplot() +
+  scale_fill_manual(values = c("grey80", "#000000")) + 
+  theme(axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25),
+        axis.title.x = element_text(size = 25),
+        axis.title.y = element_blank(),
+        legend.text = element_text(size = 25),
+        legend.title = element_text(size = 25),
+        
+        panel.background = element_rect(fill='transparent', color=NA),
+        plot.background = element_rect(fill='transparent', color=NA),
+        # panel.grid.major = element_blank(),
+        # panel.grid.minor = element_blank(),
+        # legend.background = element_rect(fill='transparent', color = NA),
+        # legend.box.background = element_rect(fill='transparent', color = NA),
+        
+        legend.position = "top",
+        legend.justification = "center",
+        legend.key.size = unit(1, "cm"),
+        legend.spacing.x = unit(1, "cm")
+        ) +
+  ylim(0, 100)
+
+main_fig
+
+main_fig <- ggsave(paste0(base_path, "/filename.png"), 
+                   width = 5, height = 5, plot = main_fig, bg = "white")
+
+
+```
+
+
+
+If you are visualizng proportions, you might want to summarize separately
+
+```{r}
+dat_summarized <- dat %>%
+  group_by(age_floor) %>%
+  mutate(total = n()) %>% 
+  group_by(age_floor, correct) %>%
+  summarize(
+    count = n(),  
+    total = first(total), 
+    mean_proportion = count / total, 
+    se = sqrt(mean_proportion * (1 - mean_proportion) / total),  
+    .groups = "drop")
+
+main_fig <- dat_summarized %>%
+  ggplot(aes(x = condition, y = mean_proportion, fill = response)) +
+    geom_bar(stat = "identity", colour = "black") +
+    scale_fill_manual(values = c("grey80", "#000000")) + 
+    geom_errorbar(data = filter(dat_summarized, response == "causal"), aes(ymax = mean_proportion + se,
+                                                                           ymin = mean_proportion - se),
+                  stat = "identity", position = "identity", width = 0.3) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+    theme_cowplot() +
+  labs(y = "Proportion",
+       x = "Intervention Type",
+       fill = "Response") +
+  ylim(0, 1) +
+  theme(axis.text.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25),
+        axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.title = element_text(size = 25),
+
+        panel.background = element_rect(fill='transparent', color=NA),
+        plot.background = element_rect(fill='transparent', color=NA),
+        legend.background = element_rect(fill='transparent', color = NA),
+        legend.box.background = element_rect(fill='transparent', color = NA),
+        
+        legend.position = "top",
+        legend.justification = "center",
+        legend.key.size = unit(1, "cm"),
+        legend.spacing.x = unit(1, "cm")
+        ) 
+
+main_fig
+
+# main_fig <- ggsave("figures/prediction.png", width = 5, height = 5, plot = main_fig, bg = "transparent")
+
+main_fig <- ggsave("figures/prediction.png", width = 6, height = 5, plot = main_fig, bg = "white")
+
+```
+
+For when you do not have enough observations per condition
+
+```{r}
+
+```
+
+
+## Item-level breakdown
+
+```{r}
+# plot code here
+
+```
+
+# Primary Analysis
+
+## Logistic regression
+
+```{r}
+# Example code
+
+##factor outcome variables
+d_model <- dat %>%
+  mutate(response = fct_relevel(response, c("similar", "causal"))) %>%
+  mutate(subject_id = factor(subject_id))
+
+##run the model
+model_prediction_vs_inference <- glmer(response ~ condition + (1 | subject_id), 
+      family = binomial(link = 'logit'), 
+      data = d_model)
+
+summary(model_prediction_vs_inference)
+
+```
+
+## Get specific probabilities
+
+```{r}
+effects_data <- allEffects(model_prediction_vs_inference)
+effects_df <- as.data.frame(effects_data$condition)
+effects_df
+
+```
+
+# Power analysis with simr 
+
+(if necessary, usually for pilot scripts)
+
+### Both conditions
+
+```{r}
+# This will test for power required to detect the condition difference
+
+#Suppose we want a study with 150 participants..
+model_sim <- extend(model_prediction_vs_inference, along = "subject_id", n = 150)
+length(unique(simr::getData(model_sim)$subject_id)) #confirm that N is now 150
+
+#run simulations
+curve_prediction_vs_inference <- powerCurve(model_sim, fixed("conditionprediction",
+                                               "z"),
+                    along = "subject_id", breaks = c(1, 5, 10, 20, 30, 40, 50,
+                                                     60, 70, 80, 90, 100,
+                                                     110, 120, 130, 140, 150), nsim = 100)
+
+## Plot power curve
+plot(curve_prediction_vs_inference)
+print(curve_prediction_vs_inference)
+
+```
+
+### One condition only
+
+```{r}
+# Assuming you are also interested in within condition performance wrt chance in a forced choice task
+
+## Make sure to re-factor your outcome variable after filtering!
+d_model_prediction <- dat_pr %>%
+  mutate(response = fct_relevel(response, c("similar", "causal"))) %>%
+  mutate(subject_id = factor(subject_id)) %>% 
+  mutate(condition = as.character(condition)) %>% 
+  filter(condition == "prediction") %>% 
+  mutate(condition = factor(condition))
+
+model_prediction <- glmer(response ~ 1 + (1 | subject_id), 
+      family = binomial(link = 'logit'), 
+      data = d_model_prediction)
+
+summary(model_prediction)
+
+## Convert log odds to probabilities (I think)
+plogis(fixef(model_prediction)[1])
+
+# Power Analysis
+model_sim <- extend(model_prediction, along = "subject_id", n = 150)
+length(unique(simr::getData(model_sim)$subject_id)) 
+
+curve_prediction <- powerCurve(model_sim, fixed("(Intercept)",
+                                               "z"),
+                    along = "subject_id", breaks = c(1, 5, 10, 20, 30, 40, 50,
+                                                     60, 70, 80, 90, 100,
+                                                     110, 120, 130, 140, 150), nsim = 100)
+
+plot(curve_prediction)
+print(curve_prediction)
+
+```
+
+# END
+
+```{r}
+#placeholder
+```
+

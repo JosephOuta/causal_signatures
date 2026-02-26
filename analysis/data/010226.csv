@@ -1,0 +1,49 @@
+subject_id,condition,coder,age,trial_type,slide_no,fam_item1,fam_item2,option1_cause,option1_effect,option2_cause,option2_effect,response,adults,response_verbose
+sub-LIU-causalsig-s001,experimental-1,Jo,8.92,comprehension,15,wet,rain,rain,wet,wet,rain,1,1,
+sub-LIU-causalsig-s001,experimental-1,Jo,8.92,psychosomatic,22,see something,NA,see something,feel hungry,see something,feel pain,1,1,
+sub-LIU-causalsig-s001,experimental-1,Jo,8.92,asymmetric,29,see something,kick something,see something,kick something,kick something,see something,1,1,"""becase if i see a ball or anything if its mine, i would kick it and not really kick it and then see it"""
+sub-LIU-causalsig-s001,experimental-1,Jo,8.92,asymmetric,36,hear something,reach for something,reach for something,hear something,hear something,reach for something,2,2,"""because maybe its like if you hear something it could be like an animal on top of something and he's trying to reach for it"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,comprehension,15,wet,rain,wet,rain,rain,wet,2,2,
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,psychosomatic,21,see something,NA,see something,become hungry,see something,feel pain,1,1,
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,psychosomatic,25,hear something,NA,hear something,feel scared,hear something,feel pain,1,1,
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,psychosomatic,29,choose what to do,NA,choose what to do,feel sick,choose what to do,feel tired,2,2,
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,psychosomatic,33,remember something,NA,remember something,feel tired,remember something,feel tired,NA,2,"""both"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,39,kick something,see something,see something,kick something,kick something,see something,1,1,"""he sees the soccer ball and then he kicks the soccer ball"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,45,hear something,reach for something,reach for something,hear something,hear something,reach for something,2,2,"""he hears something and then tries to grab it"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,51,remember something,jump up and down,jump up and down,remember something,remember something,jump up and down,2,2,"""he remembered that he was jumping on a trampoline and that made him jump up and down"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,58,reach for something,take a walk,reach for something,take a walk,take a walk,reach for something,2,2,"""because it makes more sense...he is taking a walk then he sees something then he reaches for it"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,64,feel tired,jump up and down,feel tired,jump up and down,jump up and down,feel tired,2,2,"""jumping up and down makes you feel hot so you feel tired"""
+sub-LIU-causalsig-s002,experimental-2,Jo,6.5,asymmetric,70,kick something,feel pain,kick something,feel pain,feel pain,kick something,1,1,"""because if you kick a rock it hurts"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,comprehension,15,wet,rain,wet,rain,rain,wet,2,2,
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,psychosomatic,21,see something,NA,see something,become hungry,see something,feel pain,1,1,
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,psychosomatic,25,hear something,NA,hear something,feel scared,hear something,feel pain,1,1,
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,psychosomatic,29,choose what to do,NA,choose what to do,feel sick,choose what to do,feel tired,2,2,
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,psychosomatic,33,remember something,NA,remember something,feel tired,remember something,feel hungry,2,2,
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,39,kick something,see something,see something,kick something,kick something,see something,1,1,"""i see something then i kick it"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,45,hear something,reach for something,reach for something,hear something,hear something,reach for something,2,2,"""before i reach to something to see what it is, i hear something"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,51,remember something,jump up and down,jump up and down,remember something,remember something,jump up and down,2,2,"""he remembered to jump up and down in the puddle"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,58,reach for something,take a walk,reach for something,take a walk,take a walk,reach for something,2,2,"""when i see something i walk to something i grab it sometimes"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,64,feel tired,jump up and down,feel tired,jump up and down,jump up and down,feel tired,2,2,"""because he got tired of jumping up and down in muddy puddles"""
+sub-LIU-causalsig-s003,experimental-2,Jo,6.08,asymmetric,70,kick something,feel pain,kick something,feel pain,feel pain,kick something,1,1,"""because he hurt his knee when he kicked something"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,comprehension,15,wet,rain,wet,rain,rain,wet,2,2,
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,psychosomatic,21,see something,NA,see something,become hungry,see something,feel pain,1,1,"""maybe he saw food and then he wanted food"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,psychosomatic,25,hear something,NA,hear something,feel scared,hear something,feel pain,1,1,"""maybe he heard a scary noise and then felt scared"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,psychosomatic,29,choose what to do,NA,choose what to do,feel sick,choose what to do,feel tired,2,2,"""maybe he chose the activity and then did it and then was tired afterward"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,psychosomatic,33,remember something,NA,remember something,feel tired,remember something,feel hungry,2,2,"""maybe he remembered he had to get lunch and then he started to feel hungry"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,39,kick something,see something,see something,kick something,kick something,see something,1,1,"""maybe he saw something and then wanted to just kick it"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,45,hear something,reach for something,reach for something,hear something,hear something,reach for something,2,2,"""maybe he heard a noise and wanted to know what it is and so he went closer and then saw it and tried to reach it"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,51,remember something,jump up and down,jump up and down,remember something,remember something,jump up and down,2,2,"""he probably remembed that he had to do something and then he got excited and started jumping up and down"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,58,reach for something,take a walk,reach for something,take a walk,take a walk,reach for something,2,2,"""maybe he was going on a walk and he saw something and wanted to grab it and so he reached for it"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,64,feel tired,jump up and down,feel tired,jump up and down,jump up and down,feel tired,2,2,"""maybe he was jumping and then got really tired doing it and so he stopped"""
+sub-LIU-causalsig-s004,experimental-2,Jo,8.92,asymmetric,70,kick something,feel pain,kick something,feel pain,feel pain,kick something,1,1,"""maybe he saw something and he wanted to kick it and but he stubbed his toe and it hurt him and so he felt pain"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,comprehension,15,wet,rain,wet,rain,rain,wet,2,2,
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,psychosomatic,21,see something,NA,see something,become hungry,see something,feel pain,2,1,"""if you can see something, nothing can make you feel hungry"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,psychosomatic,25,hear something,NA,hear something,feel scared,hear something,feel pain,1,1,"""because somethings that you can hear can feel scared"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,psychosomatic,29,choose what to do,NA,choose what to do,feel sick,choose what to do,feel tired,2,2,"""because when you're doing a lot of stuff you [...] feel tired"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,psychosomatic,33,remember something,NA,remember something,feel tired,remember something,feel hungry,1,2,"""because if he went somwhere then maybe its a far place to go"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,39,kick something,see something,see something,kick something,kick something,see something,1,1,"""because maybe if he saw something it could have been a soccer ball and then he kicked it"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,45,hear something,reach for something,reach for something,hear something,hear something,reach for something,2,2,"""because maybe it can be a toy"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,51,remember something,jump up and down,jump up and down,remember something,remember something,jump up and down,2,2,"""because maybe if you remember soemthing its something that's very exciting, and when you are excited you jump up and down"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,58,reach for something,take a walk,reach for something,take a walk,take a walk,reach for something,2,2,"""because when you're taking a walk, you can sometimes see stuff, like nature stuff"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,64,feel tired,jump up and down,feel tired,jump up and down,jump up and down,feel tired,2,2,"""because when you're jumping a lot and then you'll feel tired"""
+sub-LIU-causalsig-s005,experimental-2,Jo,6.33,asymmetric,70,kick something,feel pain,kick something,feel pain,feel pain,kick something,1,1,"""because if he was in a soccer game then there would be a goalie and maybe the goalie would kick it back and it would hurt them"""

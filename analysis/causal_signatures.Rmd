@@ -1,0 +1,811 @@
+---
+title: "STUDYNAME"
+output:
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    theme: cosmo
+    highlight: tango
+date: "20YY-MM-DD"
+author: Joseph Outa
+---
+
+# ReadME
+
+Description - Study name: Causal Signatures - Research question: Do children aged 3-8 have adult-like causal beliefs about symmetry and physiology? - Pilot details: Within design (Psychosomatic and Asymmetric), ran on 12/19/25 - 1/10/26, N = 20, Mean age ( )
+
+# Setup
+
+## Load packages
+
+```{r, setup, include = FALSE}
+library(pacman)
+pacman::p_load(tidyverse,
+               ggforce,
+               conflicted,
+               here,
+               cowplot,
+               lme4,
+               lmerTest,
+               effects,
+               # Hmisc, #can interfere with dplyr summarize. avoid unless necessary
+               performance,
+               rmarkdown,
+               purrr,
+               gt,
+               ragg,
+               readr,
+               scales,
+               patchwork,
+               corrplot,
+               magick,
+               pdftools,
+               simr
+               )
+
+#knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+walk(c("select", "filter", "rename", "mutate", "summarise", "summarize"), ~ conflict_prefer(.x, "dplyr"))
+conflicts_prefer(simr::fixed)
+theme_set(theme_bw()) 
+sessionInfo()
+
+```
+
+## Global variables
+
+```{r}
+base_path <- here("data")
+# df_path <- paste0(base_path, "/010926.csv")
+df_path <- paste0(base_path, "/011026.csv")
+
+```
+
+## Read data
+
+```{r}
+d <- read_csv(df_path, show_col_types = FALSE, progress = FALSE) 
+
+```
+
+# Summary stats
+
+## Wrangle data
+
+```{r}
+df <- d %>% 
+  mutate(correct = response == adults)
+
+#run exclusions
+subjects_to_exclude <- df %>%
+  filter(trial_type == "comprehension") %>%
+  filter(correct == FALSE) %>% 
+  pull(subject_id) %>% 
+  unique()
+
+print(paste("exclude count: ", length(subjects_to_exclude)))
+print(subjects_to_exclude)
+
+# subjects_to_exclude <- NULL
+
+#rest of the wrangling
+dat <- df %>% 
+  filter(!subject_id %in% subjects_to_exclude) %>% 
+  mutate(age_floor = floor(age))
+
+```
+
+## Demographics
+
+```{r}
+df_demographics <- d %>% 
+  select("subject_id", "condition", "age") 
+cat("\n") 
+
+paste0("pre-exclusion N: ", d %>% distinct(subject_id) %>% summarize(n = n()) %>% pull(n))
+paste0("post-exclusion N: ", dat %>% distinct(subject_id) %>% summarize(n = n()) %>% pull(n))
+cat("\n") 
+
+paste0(
+  "Post-exclusion condition count: ",
+  dat %>% 
+    distinct(subject_id, .keep_all = TRUE) %>% 
+    count(condition) %>% 
+    mutate(label = paste0(condition, " = ", n)) %>% 
+    pull(label) %>% 
+    paste(collapse = ", ")
+)
+cat("\n") 
+
+paste0("Age summary: ")
+summary(df_demographics$age)
+cat("\n") 
+
+```
+
+# Plot
+
+## Age distribution
+
+-   Plotting age distribution.
+-   No need to plot age by condition. N is the same in each conditions since the study is within subjects
+
+```{r}
+print(paste("mean age: ", round(mean(dat$age), 2)))
+      
+plot_age_distribution <- dat %>% 
+  mutate(age_floor = floor(age)) %>% 
+  distinct(subject_id, .keep_all = TRUE) %>% 
+  group_by(age_floor) %>%
+  count(sum = n()) %>% 
+  ggplot(aes(x = age_floor, y = n, fill = factor(age_floor))) +
+  geom_col() +
+  scale_fill_brewer(palette = "Greens") +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = seq(3, 8, by = 1))
+
+plot_age_distribution 
+  
+```
+
+## Proportion correct
+
+```{r, fig.width = 2.5, fig.height = 5}
+dat_subject <- dat %>% 
+  select(subject_id, response, adults) %>% 
+  mutate(correct = response == adults) %>%
+  drop_na(correct) %>%
+  group_by(subject_id) %>% 
+  summarize(prop_correct = mean(correct)) %>% 
+  ungroup()
+
+dat_overall_plot <- dat_subject %>% 
+  summarize(n = n(),
+            prop_adult = mean(prop_correct),
+            sd_adult = sd(prop_correct), 
+            se_adult = sd_adult / sqrt(n),
+            .groups = "drop")  
+
+fig_overall_raw <- dat_overall_plot %>% 
+  ggplot(aes(x = 1, y = prop_adult)) +
+  geom_col(fill = "grey80") +
+  geom_errorbar(
+    data = dat_overall_plot,
+    aes(x = 1, ymin = prop_adult - se_adult, ymax = prop_adult + se_adult),
+    width = 0.1) +
+  geom_jitter(
+    data = dat_subject,
+    aes(x = 1, y = prop_correct),
+    width = 0.08, height = 0, size = 2, alpha = 0.6) +
+  geom_hline(yintercept = .5, linetype = "dashed") +
+  coord_cartesian(ylim = c(0, 1), xlim = c(0, 2)) +
+  labs(x = NULL, y = "Proportion Correct") +
+  theme_cowplot() +
+  theme(
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y  = element_text(size = 25),
+    axis.title.y = element_text(size = 25))
+
+fig_overall_raw
+
+# ggsave(plot = fig_overall_raw,
+#        here("figures", "overall_raw.pdf"),
+#        width = 2.5,
+#        height = 5,
+#        bg = "white",
+#        units = "in")
+
+```
+
+## Proportion correct by age
+
+NB: sd and se are 0 for groups with only 1 subject! i.e 4s and 5s
+
+```{r}
+dat_subject_age <- dat %>%
+  mutate(age_floor = floor(age)) %>%
+  select(subject_id, age_floor, response, adults) %>%
+  mutate(correct = response == adults) %>%
+  drop_na(correct, adults) %>%
+  group_by(subject_id, age_floor) %>%
+  summarize(prop_correct = mean(correct), .groups = "drop") 
+
+dat_age_plot <- dat_subject_age %>%
+  group_by(age_floor) %>%
+  summarize(n = n(),
+            prop_adult = mean(prop_correct),
+            sd_adult = sd(prop_correct), 
+            se_adult = sd_adult / sqrt(n),
+            .groups = "drop")
+
+fig_age_overall <- dat_age_plot %>% 
+  ggplot(aes(x = age_floor, y = prop_adult)) +
+  geom_col(fill = "grey80") +
+  geom_errorbar(aes(ymin = prop_adult - se_adult, ymax = prop_adult + se_adult),
+                width = 0.15) +
+  geom_jitter(data = dat_subject_age,
+                  aes(x = age_floor, y = prop_correct),
+              width = 0.12, height = 0, alpha = 0.6, size = 2) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  coord_cartesian(ylim = c(0, 1)) +
+  scale_x_continuous(breaks = seq(3, 8, by = 1)) +
+  labs(x = "Age", y = "Proportion adult-like") +
+  theme_cowplot() +
+  theme(
+    axis.text.x = element_text(size = 25),
+    axis.title.x = element_text(size = 25),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25)
+  )
+
+fig_age_overall
+
+ggsave(here("figures", "age_overall.pdf"),
+       fig_age_overall,
+       units = "in",
+       bg = "white")
+
+```
+
+## Prop correct by condition
+
+I think do not report this in paper, because it does not consider subject-level variation. Instead, report the model results.
+
+```{r, fig.width = 6, fig.height = 5}
+dat_cond <- dat %>% 
+  filter(trial_type %in% c("psychosomatic", "asymmetric")) %>% 
+  mutate(trial_type = as.factor(trial_type)) %>% 
+  drop_na(correct) %>% 
+  group_by(trial_type) %>% 
+  summarize(n = n(),
+            prop_correct = mean(correct),
+            se_correct = sqrt(prop_correct * (1 - prop_correct) / n)) %>% 
+mutate(ci_low  = pmax(0, prop_correct - 1.96 * se_correct),
+       ci_high = pmin(1, prop_correct + 1.96 * se_correct))
+
+dat_subject_cond <- dat %>%
+  filter(trial_type %in% c("psychosomatic", "asymmetric")) %>%
+  drop_na(correct) %>%
+  group_by(subject_id, trial_type) %>%
+  dplyr::summarize(
+    prop_correct = mean(correct),
+    .groups = "drop")
+
+fig_cond <- dat_cond %>% 
+  ggplot(aes(x = trial_type, prop_correct)) +
+  geom_bar(stat = "identity", fill = "grey80") +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  geom_errorbar(aes(ymax = prop_correct + se_correct,
+                    ymin = prop_correct - se_correct),
+                width = .3) +
+  geom_jitter(data = dat_subject_cond,
+              aes(x = trial_type, y = prop_correct),
+              width = 0.12, height = 0, alpha = 0.6, size = 2) +
+  labs(y = "Proportion Adult-like",
+       x = "Trial Type") +
+  scale_x_discrete(labels = c("asymmetric" = "Asymmetric", "psychosomatic" = " Psychosomatic")) +
+  theme_cowplot() +
+  theme(axis.text.x = element_text(size = 25),
+        axis.title.x = element_text(size = 25),
+        axis.text.y = element_text(size = 25),
+        axis.title.y = element_text(size = 25)) 
+
+fig_cond
+
+ggsave(here("figures", "cond.pdf"),
+       fig_cond,
+       width = 6,
+       height = 5,
+       unit = "in",
+       bg = "white")
+  
+```
+
+## Prop correct by cond by age
+
+```{r}
+dat_subject_cond_age <- dat %>%
+  filter(trial_type %in% c("psychosomatic", "asymmetric")) %>%
+  mutate(trial_type = ifelse(trial_type == "psychosomatic", "Physiological", "Asymmetric"),
+         trial_type = as.factor(trial_type)) %>%
+  drop_na(correct, age_floor, subject_id) %>%
+  group_by(trial_type, age_floor, subject_id) %>%
+  dplyr::summarize(
+    prop_correct = mean(correct),
+    .groups = "drop"
+  )
+
+dat_cond_age <- dat_subject_cond_age %>% 
+  group_by(trial_type, age_floor) %>%
+  summarize(n = n(),
+            prop_adult = mean(prop_correct),
+            sd_adult = sd(prop_correct),
+            se_adult = sd_adult / sqrt(n)) %>% 
+  mutate(sdd_adult = ifelse(is.na(sd_adult), 0, sd_adult)) %>% 
+  mutate(se_adult = ifelse(is.na(se_adult), 0, se_adult))
+
+  
+fig_cond_age_raw <-dat_cond_age %>% 
+  ggplot() +
+  geom_col(aes(x = age_floor, y = prop_adult),
+           fill = "white", color = "black") +
+  geom_errorbar(aes(x = age_floor,
+                    ymin = prop_adult - se_adult,
+                    ymax = prop_adult + se_adult),
+                width = .3) +
+  geom_jitter(
+    data = dat_subject_cond_age,
+    aes(x = age_floor, y = prop_correct),
+    width = 0.12, height = 0, alpha = 0.6, size = 2) +
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  coord_cartesian(ylim = c(0, 1)) +
+  scale_x_continuous(breaks = seq(0, 8, by = 1)) +
+  labs(y = "Proportion Adult-like", x = "Age") +
+  facet_wrap(~trial_type) +
+  theme_cowplot() +
+  theme(
+    axis.text.x = element_text(size = 25),
+    axis.title.x = element_text(size = 25),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25),
+    strip.text = element_text(size = 22)
+  )
+
+fig_cond_age_raw
+
+ggsave(here("figures", "cond_age_raw.pdf"),
+       fig_cond_age_raw,
+       width = 6,
+       height = 5,
+       unit = "in",
+       bg = "white")
+
+
+
+```
+
+# Item-level
+
+## Physiological trials, summary
+
+```{r}
+#p-values
+dat_items_psychosomatic_pvalues <- dat %>%
+  filter(trial_type == "psychosomatic") %>%
+  select(subject_id, fam_item1, response, adults) %>%
+  drop_na(response) %>%
+  mutate(correct = response == adults) %>%
+  group_by(fam_item1) %>%
+  summarize(n = n(),
+            successes = sum(correct),
+            prop_adult = successes / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  rowwise() %>%
+  mutate(p_value = binom.test(successes, n, p = 0.5)$p.value) %>% #for now instead of logistic
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_items_psychosomatic_pvalues 
+
+#propotions plot
+dat_items_proportions <- dat %>% 
+  filter(trial_type == "psychosomatic") %>%
+  select(subject_id, fam_item1, option1_effect, option2_effect, response, adults) %>% 
+  pivot_longer(c(option1_effect, option2_effect),
+               names_to = "option_name",
+               values_to = "item") %>% 
+  mutate(option_name = ifelse(option_name == "option1_effect", 1, 2)) %>% 
+  drop_na(response, adults) %>% 
+  mutate(chosen = response == option_name,
+         response_type = ifelse(option_name == adults, "Adult-like", "Non-Adult-like")) %>% 
+  group_by(fam_item1, item, response_type) %>% 
+  summarize(n = n(),                       
+    proportion = mean(chosen),
+    se = sqrt(proportion * (1 - proportion) / n),
+    .groups = "drop") %>% 
+  mutate(proportion = round(proportion, 2),
+         se = round(se, 2)) %>% 
+  mutate(response_type = factor(response_type, levels = c("Non-Adult-like", "Adult-like")))
+
+dat_plot_long <- dat %>% 
+  filter(trial_type == "psychosomatic") %>% 
+  pivot_longer(cols = c("option1_effect", "option2_effect"),
+               names_to = "effect_type",
+               values_to = "effect") 
+
+label_data <- dat_items_proportions %>%
+  distinct(fam_item1, response_type, item) %>%
+  mutate(
+    y = ifelse(response_type == "Adult-like", 0.02, 0.98),
+    vjust = ifelse(response_type == "Adult-like", 0, 1)
+  )
+
+fig_psychosomatic <- dat_items_proportions %>% 
+  ggplot(aes(x = fam_item1, y = proportion, fill = response_type)) +
+  geom_col(color = "black") +
+  geom_hline(yintercept = .5, linetype = "dashed") +
+  geom_text(data = label_data,
+    aes(x = fam_item1, y = y, label = item, vjust = vjust),
+    size = 3.5, inherit.aes = FALSE) +
+  scale_fill_manual(values = c("Non-Adult-like" = "white",
+                               "Adult-like" = "grey80")) +
+  labs(
+    y = "Proportion",
+    x = "Target Item",
+    fill = "Response Type") +
+  theme_cowplot() +
+  theme(
+    axis.title.x = element_text(size = 25),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25),
+    strip.text = element_text(size = 22),
+    legend.position = "none"
+  )
+
+fig_psychosomatic
+
+# ggsave(here("figures", "physiological.pdf"),
+#        fig_see,
+#        width = 3,
+#        height = 6,
+#        unit = "in",
+#        bg = "white")
+
+# ggsave(here("figures", "see_something.pdf"),
+#        fig_see,
+#        width = 3,
+#        height = 6,
+#        unit = "in",
+#        bg = "white")
+
+```
+
+# Asymmetric Examples
+
+## See and kick  
+
+```{r}
+#p-values
+dat_items_see_kick_pvalues <- dat %>% 
+  filter(trial_type == "asymmetric") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "see something_kick something") %>% 
+  mutate(correct = response == adults) %>% 
+  drop_na(correct) %>%
+  group_by(trial) %>% 
+  summarize(n = n(), 
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  rowwise() %>%
+  mutate(p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_items_see_kick_pvalues
+
+#asymmetric
+dat_items_see_kick <- dat %>% 
+  filter(trial_type == "asymmetric") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "see something_kick something") %>% 
+  mutate(correct = response == adults) %>% 
+  drop_na(correct) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            prop_adult = mean(correct),
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n ),
+            .groups = "drop") %>% 
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2)) %>% 
+mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+       ci_high = pmin(1, prop_adult + 1.96 * se_adult)) 
+
+dat_items_see_kick 
+
+fig_see_kick <- dat_items_see_kick %>%
+  mutate(adult = prop_adult,
+         non_adult = 1 - prop_adult) %>%
+  pivot_longer(cols = c(adult, non_adult),
+               names_to = "response_type",
+               values_to = "proportion") %>%
+  mutate(response_type = ifelse(response_type == "non_adult", 
+                                "Non-Adult-like", "Adult-like")) %>% 
+  mutate(response_type = factor(response_type, 
+                                levels = c("Non-Adult-like", "Adult-like"))) %>% 
+  ggplot(aes(x = trial, y = proportion, fill = response_type)) +
+  geom_col(color = "black") +
+  labs(
+    y = "Proportion",
+    x = "Target Item",
+    fill = "Response Type") +
+  scale_fill_manual(values = c("grey80", "#000000")) +
+  theme_cowplot() +
+  theme(
+    # axis.text.x = element_blank(),
+    # axis.title.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_text(size = 25),
+    axis.title.y = element_text(size = 25),
+    strip.text = element_text(size = 22),
+    legend.position = "none"
+  )
+
+fig_see_kick 
+
+ggsave(here("figures", "see_kick.pdf"),
+       fig_see,
+       width = 3,
+       height = 6,
+       unit = "in",
+       bg = "white")
+
+```
+
+## Reach and hear 
+
+```{r}
+#asymmetric
+dat_reach_hear <- dat %>% 
+  filter(trial_type == "asymmetric") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "reach for something_hear something") %>% 
+  mutate(correct = response == adults) %>% 
+  drop_na(correct) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2)) %>% 
+  # mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+           # ci_high = pmin(1, prop_adult + 1.96 * se_adult)
+  # ) %>% 
+  rowwise() %>%
+  mutate(p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_reach_hear
+
+```
+
+## Jump and tired 
+
+```{r}
+
+dat_jump_tired <- dat %>% 
+  filter(trial_type == "asymmetric") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "feel tired_jump up and down") %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2)) %>% 
+  mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+         ci_high = pmin(1, prop_adult + 1.96 * se_adult)) %>% 
+  rowwise() %>%
+  mutate(
+    p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_jump_tired
+
+
+```
+
+## Physiological Examples 
+
+### See -> hungry, pain
+
+```{r}
+dat_hung_pain <- dat %>% 
+  filter(trial_type == "psychosomatic") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "see something_feel hungry") %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2)) %>% 
+  mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+         ci_high = pmin(1, prop_adult + 1.96 * se_adult)) %>% 
+  rowwise() %>%
+  mutate(p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_hung_pain
+
+```
+
+### Choose -> sick, tired
+
+```{r}
+
+dat_sick_tired <- dat %>% 
+  filter(trial_type == "psychosomatic") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "choose what to do_feel sick") %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+         ci_high = pmin(1, prop_adult + 1.96 * se_adult)) %>% 
+  rowwise() %>%
+  mutate(p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2),
+         p_value = signif(p_value, 3))
+
+dat_sick_tired
+
+```
+
+### Hear -> scared, pain
+
+```{r}
+dat_scared_pain <- dat %>% 
+  filter(trial_type == "psychosomatic") %>%
+  unite("trial", c(option1_cause, option1_effect), sep = "_") %>% 
+  filter(trial == "hear something_feel scared") %>% 
+  drop_na(response) %>% 
+  mutate(correct = response == adults) %>% 
+  group_by(trial) %>% 
+  summarize(n = n(),
+            x = sum(correct),
+            prop_adult = x / n,
+            se_adult = sqrt(prop_adult * (1 - prop_adult) / n),
+            .groups = "drop") %>%
+  mutate(prop_adult = round(prop_adult, 2),
+         se_adult = round(se_adult, 2)) %>% 
+  mutate(ci_low  = pmax(0, prop_adult - 1.96 * se_adult),
+         ci_high = pmin(1, prop_adult + 1.96 * se_adult)) %>% 
+  rowwise() %>%
+  mutate(p_value = binom.test(x, n, p = 0.5)$p.value) %>%
+  ungroup() %>%
+  mutate(
+    prop_adult = round(prop_adult, 2),
+    se_adult = round(se_adult, 2),
+    p_value = signif(p_value, 3))
+
+dat_scared_pain
+
+```
+
+# Primary Analysis 
+
+## Overall effect 
+
+```{r}
+d_model <- dat %>%
+  select(subject_id, response, adults) %>% 
+  drop_na(response) %>% 
+  mutate(correct = as.integer(response == adults))
+
+model_proportion <- glmer(correct ~ 1 + (1|subject_id), 
+                          family = binomial(link = 'logit'), data = d_model)
+
+## All effects
+summary(model_proportion)
+
+plogis(fixef(model_proportion)[1])
+
+ci_logit <- confint(model_proportion,
+                    parm = "(Intercept)",
+                    method = "Wald")
+
+plogis(ci_logit)
+```
+
+## Effect of condition
+
+This is what I should technically be reporting in the paper. Doesn't exactly match the figures.
+
+```{r}
+#for trial type difference
+model_trial_type <- glmer(
+  correct ~ trial_type + (1 | subject_id),
+  family = binomial,
+  data = dat %>% filter(trial_type %in% c("asymmetric", "psychosomatic"))
+)
+summary(model_trial_type)
+
+#comparing each trial type to chance
+#Asymetric
+model_asym <- glmer(
+  correct ~ 1 + (1 | subject_id),
+  family = binomial,
+  data = dat %>% filter(trial_type == "asymmetric")
+)
+summary(model_asym)
+plogis(2.6804)
+#"they selected the adult-like response significantly more than chance (mean proportion = 88.88% 95% CI [79.5, 98.2], p < .001""
+
+#Pyschosomatic (aka Physiological)
+model_ps <- glmer(
+  correct ~ 1 + (1 | subject_id),
+  family = binomial,
+  data = dat %>% filter(trial_type == "psychosomatic")
+)
+summary(model_ps)
+plogis(2.2470)
+
+```
+
+## Effect of age
+
+```{r}
+d_age_model <- dat %>%
+  select(subject_id, age, trial_type, response, adults) %>% 
+  drop_na(response) %>% 
+  mutate(correct = as.integer(response == adults))
+
+model_age <- glmer(correct ~ age + (1|subject_id), 
+      family = binomial(link = 'logit'),
+      data = d_age_model %>% filter(trial_type %in% c("asymmetric", "psychosomatic")))
+
+summary(model_age)
+exp(0.4624)
+
+
+model_age_trial_type <- glmer(correct ~ age + trial_type + (1|subject_id), 
+      family = binomial(link = 'logit'),
+      data = d_age_model %>% filter(trial_type %in% c("asymmetric", "psychosomatic")))
+
+summary(model_age_trial_type)
+
+model_age_asym <- glmer(correct ~ age + (1|subject_id), 
+      family = binomial(link = 'logit'),
+      data = d_age_model %>% filter(trial_type == "psychosomatic"))
+
+summary(model_age_asym)
+
+model_age_psychos <- glmer(correct ~ age + (1|subject_id), 
+      family = binomial(link = 'logit'),
+      data = d_age_model %>% filter(trial_type == "asymmetric"))
+
+summary(model_age_psychos)
+
+```
+
+# END
+
+```{r}
+#placeholder
+```
